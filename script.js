@@ -232,8 +232,8 @@ const main = () => {
     process.exit(1);
   }
 
-  let oldRealmName = "ajax";
-  let newRealmName = "ajax-dev";
+  let oldRealmName = "ajax-dev";
+  let newRealmName = "ajax-demo";
 
   if (args.length >= 2) {
     oldRealmName = args[1];
@@ -250,7 +250,6 @@ const main = () => {
       const jsonData = JSON.parse(rawData);
       if (jsonData.realm) {
         oldRealmName = jsonData.realm;
-        newRealmName = `${oldRealmName}-dev`;
         console.log(`📍 Auto-detected realm name: "${oldRealmName}"`);
         console.log(`🎯 Target realm name: "${newRealmName}"`);
       }
