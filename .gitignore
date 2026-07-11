@@ -1,1 +1,4 @@
 /.idea/
+node_modules/
+*-realm-export.json
+!test/fixtures/sample-realm-export.json
