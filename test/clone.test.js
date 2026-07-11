@@ -24,7 +24,9 @@ test("replaces every UUID consistently and none of the old ones survive", () => 
       .filter(([, v]) => /^[0-9a-f-]{36}$/.test(v))
       .map(([, v]) => v)
   );
-  const { realm } = cloneRealm(input, { newRealmName: "myrealm-dev" });
+  const { realm, summary } = cloneRealm(input, { newRealmName: "myrealm-dev" });
+  // 10 distinct replaceable UUIDs in the fixture (8888... is a clientId and stays)
+  assert.equal(summary.uuidsReplaced, 10);
   const skip = new Set(["clientId", "serviceAccountClientId", "alias", "providerId", "authenticator", "protocolMapper", "user.attribute", "claim.name", "user.session.note"]);
   for (const [key, value] of collectStrings(realm)) {
     if (skip.has(key)) continue;
