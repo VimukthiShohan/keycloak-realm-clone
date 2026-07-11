@@ -1,0 +1,82 @@
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "realm": "myrealm",
+  "displayName": "MyRealm Portal",
+  "displayNameHtml": "<b>myrealm</b>",
+  "defaultRole": {
+    "id": "22222222-2222-2222-2222-222222222222",
+    "name": "default-roles-myrealm",
+    "containerId": "11111111-1111-1111-1111-111111111111"
+  },
+  "roles": {
+    "realm": [
+      {
+        "id": "22222222-2222-2222-2222-222222222222",
+        "name": "default-roles-myrealm",
+        "containerId": "11111111-1111-1111-1111-111111111111"
+      },
+      {
+        "id": "33333333-3333-3333-3333-333333333333",
+        "name": "uma_authorization",
+        "containerId": "11111111-1111-1111-1111-111111111111"
+      }
+    ],
+    "client": {
+      "account": [
+        {
+          "id": "44444444-4444-4444-4444-444444444444",
+          "name": "view-profile",
+          "containerId": "55555555-5555-5555-5555-555555555555"
+        }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "clientId": "account",
+      "baseUrl": "https://kc.example.com/realms/myrealm/account/",
+      "redirectUris": ["https://kc.example.com/realms/myrealm/account/*"],
+      "adminUrl": "https://kc.example.com/realms/myrealm/admin/",
+      "secret": "**********",
+      "protocolMappers": [
+        {
+          "id": "66666666-6666-6666-6666-666666666666",
+          "name": "username",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": { "user.attribute": "username", "claim.name": "preferred_username" }
+        }
+      ]
+    },
+    {
+      "id": "77777777-7777-7777-7777-777777777777",
+      "clientId": "88888888-8888-8888-8888-888888888888",
+      "authenticationFlowBindingOverrides": {
+        "browser": "99999999-9999-9999-9999-999999999999"
+      }
+    }
+  ],
+  "identityProviders": [
+    { "alias": "google", "providerId": "google", "config": { "clientSecret": "**********", "clientId": "google-oauth-id" } }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "name": "ldap",
+        "providerId": "ldap",
+        "config": { "bindCredential": ["**********"] }
+      }
+    ]
+  },
+  "authenticationFlows": [
+    { "id": "99999999-9999-9999-9999-999999999999", "alias": "browser", "providerId": "basic-flow" }
+  ],
+  "users": [
+    {
+      "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "username": "service-account-myclient",
+      "serviceAccountClientId": "88888888-8888-8888-8888-888888888888"
+    }
+  ]
+}

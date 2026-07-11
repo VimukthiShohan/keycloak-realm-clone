@@ -1,0 +1,14 @@
+{
+  "name": "keycloak-realm-clone",
+  "version": "1.0.0",
+  "description": "Clone a Keycloak realm export for re-import on the same instance: rewrites all UUIDs, renames the realm, and clears masked secrets to avoid duplicate key constraint errors.",
+  "main": "index.js",
+  "bin": { "keycloak-realm-clone": "bin/cli.js" },
+  "files": ["bin", "src", "index.js", "README.md", "LICENSE"],
+  "scripts": { "test": "node --test" },
+  "engines": { "node": ">=18" },
+  "keywords": ["keycloak", "realm", "clone", "export", "import", "sso", "iam", "oidc", "identity", "migration"],
+  "repository": { "type": "git", "url": "git+https://github.com/VimukthiShohan/keycloak-realm-clone.git" },
+  "license": "MIT",
+  "author": "Vimukthi Jayawardana"
+}

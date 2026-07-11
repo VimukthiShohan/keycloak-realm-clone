@@ -4,87 +4,98 @@ This file provides shared guidance to AI coding agents when working with code in
 
 ## Project Overview
 
-A dependency-free Node.js CLI script that clones Keycloak realm exports so they can be re-imported
-as a new realm **on the same Keycloak instance**. A raw re-import fails with UUID collision errors
-(`duplicate key value violates unique constraint`) because every internal ID in the export already
-exists in the database — see [keycloak/keycloak#24770](https://github.com/keycloak/keycloak/issues/24770).
-The script rewrites all UUIDs (preserving relationships), renames the realm, and fixes
-realm-referencing fields so the output imports cleanly.
+A dependency-free Node.js CLI and library that clones Keycloak realm exports so they can be
+re-imported as a new realm **on the same Keycloak instance**. A raw re-import fails with UUID
+collision errors (`duplicate key value violates unique constraint`) because every internal ID in
+the export already exists in the database — see
+[keycloak/keycloak#24770](https://github.com/keycloak/keycloak/issues/24770). The tool rewrites
+all UUIDs (preserving relationships), renames the realm, and fixes realm-referencing fields so the
+output imports cleanly.
 
 ## Repository Layout
 
 ```
-script.js    ← the entire implementation (Node.js, no dependencies — uses only fs + crypto)
-README.md    ← user-facing docs: problem, usage, import walkthrough, troubleshooting
-AGENTS.md    ← this file (canonical AI guidance; CLAUDE.md just points here)
-CLAUDE.md    ← one-line pointer to AGENTS.md
+bin/cli.js     ← CLI entry point (arg parsing, --help/--version/--dry-run, exit codes)
+src/clone.js   ← library implementation: cloneRealm(realmJson, options)
+index.js       ← package entry point, re-exports src/clone.js
+test/          ← node:test suite (run via `npm test`)
+README.md      ← user-facing docs: problem, usage, import walkthrough, troubleshooting
+AGENTS.md      ← this file (canonical AI guidance; CLAUDE.md just points here)
+CLAUDE.md      ← one-line pointer to AGENTS.md
 ```
 
-There is no `package.json`, no build step, no test suite, and no CI. Verification is manual:
-run the script against a real realm export and import the output into Keycloak.
+Published as the `keycloak-realm-clone` npm package (`bin: keycloak-realm-clone`, no
+dependencies). GitHub Actions CI runs `npm test` on push/PR. Verification is `npm test` plus
+manual: run the CLI against a real realm export and import the output into Keycloak.
 
 ## Usage
 
 ```bash
-# Auto-detect realm name from the export (targets the hardcoded default new name)
-node script.js "your-realm-export.json"
+# CLI
+npx keycloak-realm-clone realm-export.json myrealm-dev
+npx keycloak-realm-clone realm-export.json myrealm-dev --old-name myrealm -o out.json
+npx keycloak-realm-clone realm-export.json myrealm-dev --dry-run
 
-# Explicit old and new realm names
-node script.js "your-realm-export.json" "old-realm" "new-realm"
+# Library
+const { cloneRealm } = require("keycloak-realm-clone");
+const { realm, summary } = cloneRealm(exportJson, { newRealmName, oldRealmName });
 ```
 
-Output is written to `<new-realm-name>-realm-export.json` in the working directory.
+Output is written to `<new-realm-name>-realm-export.json` by default (override with `-o/--output`).
 
-## How script.js Works (processing order matters)
+## How src/clone.js Works (processing order matters)
 
-`processKeycloakJSON` runs these steps in order:
+`cloneRealm` runs these steps in order:
 
-1. `uuidMap.clear()` — the module-level `Map` of old→new UUIDs is reset per run.
+1. The input is deep-cloned (`cloneRealm` never mutates its argument); a fresh `Map` of old→new
+   UUIDs is created per call.
 2. The old realm `id` is captured and pre-mapped to a fresh UUID.
-3. `updateRealmSpecificFields` — renames the realm, rewrites `displayName`/`displayNameHtml`,
-   `default-roles-<realm>` role names, client `redirectUris`/`baseUrl`/`adminUrl`
-   (`/realms/<old>/` → `/realms/<new>/`), and **deletes masked client secrets**
-   (`"**********"`) so Keycloak regenerates them on import.
-4. `replaceUUIDs` — recursive walk replacing every UUID-shaped string value, except values under
-   keys in the `configKeys` skip list (see below). Consistency comes from `uuidMap`: the same old
-   UUID always maps to the same new UUID, which is what preserves cross-references
+3. `renameRealm` — renames the realm, rewrites `displayName`/`displayNameHtml`,
+   `default-roles-<realm>` role names, and client `redirectUris`/`baseUrl`/`adminUrl`
+   (`/realms/<old>/` → `/realms/<new>/`).
+4. `removeMaskedSecrets` — deletes masked values (`"**********"`) wherever found (client secrets,
+   identity provider `clientSecret`, LDAP `bindCredential`) so Keycloak regenerates them on import.
+5. `replaceUUIDs` — recursive walk replacing every UUID-shaped string value, except values under
+   keys in the `CONFIG_KEYS` skip list (see below). Consistency comes from the UUID map: the same
+   old UUID always maps to the same new UUID, which is what preserves cross-references
    (role containers, service accounts, flow bindings).
-5. The top-level realm `id` is set to the new UUID.
-6. `fixContainerIds` — second pass catching any remaining `containerId` still equal to the old
+6. The top-level realm `id` is set to the new UUID.
+7. `fixContainerIds` — second pass catching any remaining `containerId` still equal to the old
    realm id.
+
+`cloneRealm` returns `{ realm, summary }`, where `summary = { uuidsReplaced, secretsRemoved,
+oldRealmName, newRealmName }`.
 
 ## Invariants — do not break these
 
-- **The `configKeys` skip list is load-bearing.** Keys like `clientId`, `alias`, `providerId`,
-  `authenticator`, `protocolMapper`, `user.attribute`, `claim.name`, `serviceAccountClientId`
-  hold *identifiers or config values that may look like UUIDs but must survive unchanged* —
-  rewriting them breaks clients ("account", "admin-cli", etc.) and mappers. When adding UUID
-  coverage, extend the skip list rather than narrowing it.
-- **Same-UUID-same-replacement.** All replacement must go through `uuidMap`. Generating an
+- **The `CONFIG_KEYS` skip list is load-bearing.** Keys like `clientId`, `alias`, `providerId`,
+  `authenticator`, `protocolMapper`, `user.attribute`, `claim.name`, `user.session.note`,
+  `serviceAccountClientId` hold *identifiers or config values that may look like UUIDs but must
+  survive unchanged* — rewriting them breaks clients ("account", "admin-cli", etc.) and mappers.
+  When adding UUID coverage, extend the skip list rather than narrowing it.
+- **Same-UUID-same-replacement.** All replacement must go through the UUID map. Generating an
   independent UUID for a repeated value severs the relationship it encodes.
 - **Masked secrets are deleted, never rewritten.** Keycloak masks secrets as `**********` in
   exports; deleting the field is what triggers regeneration on import.
-- **No dependencies.** The script must stay runnable as `node script.js` with nothing but the
-  Node.js standard library (`fs`, `crypto.randomUUID` — requires Node ≥ 14.17).
+- **No dependencies.** The package must stay runnable with nothing but the Node.js standard
+  library (`crypto.randomUUID`, `fs`). `engines.node` in `package.json` gates the minimum version.
 
 ## Known Quirks / Gotchas
 
-- The default realm names when not supplied on the CLI are hardcoded in `main()`
-  (`oldRealmName = "ajax-dev"`, `newRealmName = "ajax-demo"`). Auto-detection overrides the old
-  name only; the new name stays the hardcoded default unless passed as the third argument.
-- `updateRealmSpecificFields` builds `new RegExp(oldRealmName, "gi")` from user input without
-  escaping — realm names containing regex metacharacters will misbehave in display-name rewrites.
-- README examples reference a specific historical run (realm "ajax" → `ajax-dev-realm-export.json`,
-  137 UUIDs). Treat those as illustrative, not as current state.
-- The usage string in `main()` says `keycloak-realm-clone.js` but the file is `script.js` — keep
-  docs consistent with the actual filename when touching either.
+- `renameRealm` builds `new RegExp(escapeRegExp(oldName), "gi")` — the old realm name is escaped
+  before use, so regex metacharacters in realm names are handled safely.
+- README examples use a generic `myrealm` name; treat any specific counts (UUIDs replaced, etc.)
+  as illustrative, not as current state.
 
 ## After-Import Checklist (manual, per README)
 
 1. Import the generated JSON via Admin Console → Add Realm → Select file.
 2. Regenerate/copy client secrets for confidential clients and update consuming apps.
-3. Verify redirect URIs, authentication flows, and SMTP settings (SMTP is intentionally left
-   untouched by the script).
+3. Re-enter identity provider secrets and LDAP bind credentials (also cleared by the tool).
+4. Verify redirect URIs, authentication flows, and SMTP settings (SMTP is intentionally left
+   untouched by the tool).
+
+Automated verification: `npm test` runs the `node:test` suite; CI runs it on every push/PR.
 
 ## Commit Convention
 
