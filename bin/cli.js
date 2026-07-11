@@ -27,10 +27,10 @@ const parseArgs = (argv) => {
     if (arg === "-v" || arg === "--version") return { version: true };
     if (arg === "-o" || arg === "--output") {
       opts.output = argv[++i];
-      if (!opts.output) fail(1, `${arg} requires a value`);
+      if (!opts.output || opts.output.startsWith("-")) fail(1, `${arg} requires a value`);
     } else if (arg === "--old-name") {
       opts.oldName = argv[++i];
-      if (!opts.oldName) fail(1, "--old-name requires a value");
+      if (!opts.oldName || opts.oldName.startsWith("-")) fail(1, "--old-name requires a value");
     } else if (arg === "--dry-run") opts.dryRun = true;
     else if (arg.startsWith("-")) fail(1, `unknown option: ${arg}`);
     else opts.positional.push(arg);

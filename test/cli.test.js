@@ -41,6 +41,9 @@ test("usage errors exit 1", () => {
   assert.equal(run([]).code, 1);
   assert.equal(run([fixture]).code, 1);
   assert.equal(run([fixture, "new", "--bogus"]).code, 1);
+  // a flag must not be consumed as another flag's value
+  assert.equal(run([fixture, "new", "--old-name", "--dry-run"]).code, 1);
+  assert.equal(run([fixture, "new", "-o", "--dry-run"]).code, 1);
 });
 
 test("processing errors exit 2", () => {
