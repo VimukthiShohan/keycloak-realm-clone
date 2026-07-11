@@ -145,6 +145,11 @@ issue with a redacted excerpt.
 `clientId` is in the preserved-values list. If a custom field looks UUID-shaped and needs to
 survive rewriting, that's what the config key skip list is for; open an issue to get it added.
 
+## Read more
+
+- Blog post: [How to clone a Keycloak realm on the same instance (fixing "duplicate key value violates unique constraint")](https://dev.to/vimukthishohanjay/how-to-clone-a-keycloak-realm-on-the-same-instance-fixing-duplicate-key-value-violates-unique-25ja)
+- Upstream issue: [keycloak/keycloak#24770](https://github.com/keycloak/keycloak/issues/24770)
+
 ## License
 
 [MIT](LICENSE)
